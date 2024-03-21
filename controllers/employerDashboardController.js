@@ -2,30 +2,48 @@ const createEmployermodel = require("../models/createEmployer");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
-const { employerSchema } = require("../helpers/validationSchema");
+//const { employerSchema } = require("../helpers/validationSchema");
 
 // for create employer
 const createEmployer = async (req, res) => {
   try {
     const { name, email, mobileNo, designation, gender, course } = req.body;
     const file = req.file;
-    await employerSchema.validateAsync(req.body);
+    // await employerSchema.validateAsync(req.body);
     // Check if the authorization token is present
     const token = req.headers.authorization;
-    if (!token) {
-      return res.status(401).json({ message: "Bad request or Token is missing" });
+    if (!token || !token.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Unauthorized. Token is missing or invalid." });
     }
 
-    // Verify the token and extract the employer's ID
-    const decodedToken = jwt.verify(
-      token.replace("Bearer ", ""),
-      process.env.JWT_SECRET_REFRESH_TOKEN
-    );
+   
+    const tokenString = token.split(' ')[1];
+
+   
+    const decodedToken = jwt.verify(tokenString, process.env.JWT_SECRET_REFRESH_TOKEN);
     const employerId = decodedToken._id;
-console.log(employerId);
+
+    console.log(employerId);
     // Validation
-    if (!name || !email || !mobileNo || !designation || !gender || !course || !file) {
-      return res.status(400).json({ message: "Name, email, mobileNo, designation, gender, course, and file are required" });
+    if (
+      !name ||
+      !email ||
+      !mobileNo ||
+      !designation ||
+      !gender ||
+      !course ||
+      !file
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Name, email, mobileNo, designation, gender, course, and file are required",
+        });
+    } else if (!/^\d{10}$/.test(mobileNo)) {
+      return res
+        .status(400)
+        .json({ message: "Mobile number must be a 10-digit number" });
     }
 
     // Check if the employer already exists
@@ -50,11 +68,17 @@ console.log(employerId);
         data: file.buffer,
         contentType: file.mimetype,
         imagePath: `uploads/${file.filename}`,
-      }
+      },
     });
     await newEmployer.save();
 
-    return res.status(201).json({ success: true, message: "Employer created successfully", newEmployer });
+    return res
+      .status(201)
+      .json({
+        success: true,
+        message: "Employer created successfully",
+        newEmployer,
+      });
   } catch (error) {
     console.error("Error in creating employer:", error);
     return res.status(500).json({
@@ -65,49 +89,73 @@ console.log(employerId);
   }
 };
 
-// for geting employer details
-  const getEmployerList = async (req, res, next) => {
-    try {
-      const token = req.headers.authorization;
-  
-      if (!token) {
-        return res.status(401).json({ message: "Bad request or Token is missing" });
-      }
-  
-      const decodedToken = jwt.verify(
-        token.replace("Bearer ", ""),
-        process.env.JWT_SECRET_REFRESH_TOKEN
-      );
-  
-      // Assuming the user ID is stored in decodedToken._id
-      const employerId = decodedToken._id;
-  
-      // Retrieve employer list based on user ID
-      const employerList = await createEmployermodel.find({  employerId }).exec();
-  
-      if (!employerList) {
-        return res.status(404).json({ message: "Employer list not found" });
-      }
-  
-      return res.json({
-        message: "Employer list retrieved successfully",
-        employerList,
-      });
-    } catch (error) {
-      console.error("Error getting employer list:", error);
-      if (error instanceof jwt.JsonWebTokenError) {
-        return res.status(401).json({ message: "Invalid token" });
-      }
-      return res.status(500).json({ message: "Server error" });
+// for geting employer details 
+const getEmployerList = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization;
+
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "Bad request or Token is missing" });
     }
-  };
+
+    const decodedToken = jwt.verify(
+      token.replace("Bearer ", ""),
+      process.env.JWT_SECRET_REFRESH_TOKEN
+    );
+
+    // Assuming the user ID is stored in decodedToken._id
+    const employerId = decodedToken._id;
+
+    // Retrieve employer list based on user ID
+    const employerList = await createEmployermodel.find({ employerId }).exec();
+
+    if (!employerList) {
+      return res.status(404).json({ message: "Employer list not found" });
+    }
+    return res.json({
+      message: "Employer list retrieved successfully",
+      employerList,
+    });
+  } catch (error) {
+    console.error("Error getting employer list:", error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+//get all employers list
+const getAllEmployerList = async (req, res, next) => {
+  try {
+    // Retrieve employer list 
+    const employerList = await createEmployermodel.find({});
+
+    if (!employerList) {
+      return res.status(404).json({ message: "Employer list not found" });
+    }
+    return res.json({
+      message: "Employer list retrieved successfully",
+      employerList,
+    });
+  } catch (error) {
+    console.error("Error getting employer list:", error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 // for updating employee
 const updateEmployee = async (req, res) => {
   try {
     const { name, email, mobileNo, designation, gender, course } = req.body;
     const { id } = req.params;
     const file = req.file;
-console.log(req.body);
+    console.log(req.body);
     // Check if the ID is provided
     if (!id) {
       return res.status(400).json({
@@ -118,7 +166,7 @@ console.log(req.body);
 
     // Find the employer in the database
     const existingEmployee = await createEmployermodel.findById(id);
-console.log(existingEmployee);
+    console.log(existingEmployee);
     // Check if the employer with the given ID exists
     if (!existingEmployee) {
       return res.status(404).json({
@@ -164,6 +212,49 @@ console.log(existingEmployee);
   }
 };
 
+//get single employee list
+const getSingleEmployee = async (req, res) => {
+  try {
+    //const { name, email, mobileNo, designation, gender, course } = req.body;
+    const { id } = req.params;
+    //const file = req.file;
+    console.log(req.body);
+    // Check if the ID is provided
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Employer ID not provided",
+      });
+    }
+
+    // Find the employer in the database
+    const existingEmployee = await createEmployermodel.findById(id);
+    console.log(existingEmployee);
+    // Check if the employer with the given ID exists
+    if (!existingEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employer not found",
+      });
+    }
+
+    // Include the employer information in the response
+    return res.status(200).json({
+      success: true,
+      message: "Employer data updated successfully",
+      existingEmployee,
+    });
+  } catch (error) {
+    console.error("Error while updating employer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error while updating employer",
+      error: error.message,
+    });
+  }
+};
+
+
 //for deleting employee
 const deleteEmployee = async (req, res) => {
   try {
@@ -179,7 +270,7 @@ const deleteEmployee = async (req, res) => {
     // Find and remove the product from the database
     const deleteEmployee = await createEmployermodel.findByIdAndDelete(id);
 
-    if (!deleteEmployee ) {
+    if (!deleteEmployee) {
       return res.status(404).json({
         success: false,
         message: "employee not found",
@@ -189,7 +280,7 @@ const deleteEmployee = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "employee deleted successfully",
-      employee: deleteEmployee ,
+      employee: deleteEmployee,
     });
   } catch (error) {
     console.log(error);
@@ -201,4 +292,13 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-  module.exports = {createEmployer,getEmployerList,updateEmployee,deleteEmployee}
+module.exports = {
+  createEmployer,
+  getEmployerList,
+  updateEmployee,
+  deleteEmployee,
+  getAllEmployerList,
+  getSingleEmployee,
+};
+
+

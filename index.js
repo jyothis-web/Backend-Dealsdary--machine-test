@@ -7,14 +7,14 @@ const employerDashboardRoutes = require('./routes/employerDashboardRoutes')
 
 
 const app = express();
+//middlewares
 app.use(express.json());
 app.use(cors());
-
 app.use('/uploads', express.static('uploads'));
 
 //routes
 app.use("/Employerauth",authRoutes);
- app.use("/employerDashboard",employerDashboardRoutes);
+app.use("/employerDashboard",employerDashboardRoutes);
 
 
 const PORT = process.env.PORT;

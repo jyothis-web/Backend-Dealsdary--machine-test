@@ -25,10 +25,9 @@ const employerSchema  = Joi.object({
   mobileNo: Joi.string().required().trim().pattern(/^[0-9]{10}$/),
   designation: Joi.string().required(),
   gender: Joi.string().required(),
-  course: Joi.array().items(Joi.string().trim()),
+  course: Joi.array().items(Joi.string()),
   image: Joi.object({
     image: Joi.string().required().valid("jpg", "png"),
-    ContentType: Joi.string().required(),
     imagePath: Joi.string().required()
   }).required()
 });
